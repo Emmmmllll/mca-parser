@@ -294,3 +294,19 @@ fn test_block_in_chunk() {
 
     assert_eq!(chunk.get_block(13, 200, 15), None)
 }
+
+#[test]
+fn test_parse_custom_nbt() {
+    #[derive(serde::Deserialize, Debug)]
+    struct NbtData {
+        #[serde(rename = "DataVersion")]
+        data_version: i32,
+        // ...
+    }
+
+    let vec = fs::read("./test/r.0.0.mca").unwrap();
+    let reg = Region::from_slice(&vec).unwrap();
+    let chunk = reg.get_chunk(0, 0).unwrap().unwrap();
+
+    dbg!(chunk.parse_custom::<NbtData>().unwrap().data_version);
+}

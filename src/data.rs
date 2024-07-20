@@ -44,12 +44,12 @@ impl Location {
 ///
 /// The full NBT structure can be accessed through the [`Deref`] implementation to [`nbt::ChunkNbt`]
 #[derive(Debug, Clone, PartialEq)]
-pub struct ParsedChunk {
-    nbt: nbt::ChunkNbt,
+pub struct ParsedChunk<Nbt = nbt::ChunkNbt> {
+    nbt: Nbt,
 }
 
-impl Deref for ParsedChunk {
-    type Target = nbt::ChunkNbt;
+impl<Nbt> Deref for ParsedChunk<Nbt> {
+    type Target = Nbt;
 
     fn deref(&self) -> &Self::Target {
         &self.nbt
@@ -84,24 +84,33 @@ impl Chunk {
         b
     }
 
-    /// Parse this chunk into a [`ParsedChunk`]
+    /// Parse this chunk into a [`ParsedChunk<Nbt>`] where Nbt is a generic type that implements [`DeserializeOwned`](serde::de::DeserializeOwned)
     ///
     /// Allocates a new [`Vec`] into which the compressed data will be uncompressed and then parses
     /// the nbt from that [`Vec`]
-    pub fn parse(&self) -> Result<ParsedChunk> {
+    pub fn parse_custom<Nbt: serde::de::DeserializeOwned>(&self) -> Result<ParsedChunk<Nbt>> {
         match self.compression_type {
             CompressionType::GZip => todo!(),
             CompressionType::Zlib => {
                 let data = &self.compressed_data;
                 let uncompressed = inflate::decompress_to_vec_zlib(data)?;
-                Ok(ParsedChunk {
-                    nbt: fastnbt::from_bytes(&uncompressed)?,
+                Ok(ParsedChunk::<Nbt> {
+                    nbt: fastnbt::from_bytes::<Nbt>(&uncompressed)?,
                 })
             }
             CompressionType::Uncompressed => todo!(),
             CompressionType::LZ4 => todo!(),
             CompressionType::Custom => todo!(),
         }
+    }
+
+    /// Parse this chunk into a [`ParsedChunk`]
+    ///
+    /// Allocates a new [`Vec`] into which the compressed data will be uncompressed and then parses
+    /// the nbt from that [`Vec`]
+    #[inline(always)]
+    pub fn parse(&self) -> Result<ParsedChunk> {
+        self.parse_custom()
     }
 
     /// Get the length of the compressed data within this chunk
